@@ -22,8 +22,8 @@ from absl import logging
 from tensor2tensor.data_generators import text_encoder
 
 
-from cubert import cubert_tokenizer
-from cubert import unified_tokenizer
+import cubert_tokenizer
+import unified_tokenizer
 
 
 def wordpiece_ids_from_wordpiece_tokens(

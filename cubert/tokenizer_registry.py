@@ -16,8 +16,8 @@
 """A registry of all tokenizers based on CuBertTokenizer."""
 import enum
 
-from cubert import java_tokenizer
-from cubert import python_tokenizer
+import java_tokenizer
+import python_tokenizer
 
 
 @enum.unique

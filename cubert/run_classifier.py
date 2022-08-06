@@ -60,9 +60,9 @@ from tensor2tensor.data_generators import text_encoder
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import estimator as tf_estimator
 
-from cubert import code_to_subtokenized_sentences
-from cubert import tokenizer_registry
-from cubert import unified_tokenizer
+import code_to_subtokenized_sentences
+import tokenizer_registry
+import unified_tokenizer
 
 flags = tf.flags
 
@@ -571,7 +571,7 @@ def file_based_input_fn_builder(input_file, seq_length, is_training,
       d = d.shuffle(buffer_size=100)
 
     d = d.apply(
-        tf.contrib.data.map_and_batch(
+        tf.data.experimental.map_and_batch(
             lambda record: _decode_record(record, name_to_features),
             batch_size=batch_size,
             drop_remainder=drop_remainder))
@@ -686,7 +686,7 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
                                                num_train_steps,
                                                num_warmup_steps, use_tpu)
 
-      output_spec = tf.contrib.tpu.TPUEstimatorSpec(
+      output_spec = tf.estimator.tpu.TPUEstimatorSpec(
           mode=mode,
           loss=total_loss,
           train_op=train_op,
@@ -738,13 +738,13 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
 
       eval_metrics = (metric_fn,
                       [per_example_loss, label_ids, logits, is_real_example])
-      output_spec = tf.contrib.tpu.TPUEstimatorSpec(
+      output_spec = tf.estimator.tpu.TPUEstimatorSpec(
           mode=mode,
           loss=total_loss,
           eval_metrics=eval_metrics,
           scaffold_fn=scaffold_fn)
     else:
-      output_spec = tf.contrib.tpu.TPUEstimatorSpec(
+      output_spec = tf.estimator.tpu.TPUEstimatorSpec(
           mode=mode,
           predictions={"probabilities": probabilities},
           scaffold_fn=scaffold_fn)
@@ -865,16 +865,16 @@ def main(_):
 
   tpu_cluster_resolver = None
   if FLAGS.use_tpu and FLAGS.tpu_name:
-    tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver(
+    tpu_cluster_resolver = tf.cluster_resolver.TPUClusterResolver(
         FLAGS.tpu_name, zone=FLAGS.tpu_zone, project=FLAGS.gcp_project)
 
-  is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
-  run_config = tf.contrib.tpu.RunConfig(
+  is_per_host = tf.estimator.tpu.InputPipelineConfig.PER_HOST_V2
+  run_config = tf.estimator.tpu.RunConfig(
       cluster=tpu_cluster_resolver,
       master=FLAGS.master,
       model_dir=FLAGS.output_dir,
       save_checkpoints_steps=FLAGS.save_checkpoints_steps,
-      tpu_config=tf.contrib.tpu.TPUConfig(
+      tpu_config=tf.estimator.tpu.TPUConfig(
           iterations_per_loop=FLAGS.iterations_per_loop,
           num_shards=FLAGS.num_tpu_cores,
           per_host_input_for_training=is_per_host))
@@ -900,7 +900,7 @@ def main(_):
 
   # If TPU is not available, this will fall back to normal Estimator on CPU
   # or GPU.
-  estimator = tf.contrib.tpu.TPUEstimator(
+  estimator = tf.estimator.tpu.TPUEstimator(
       use_tpu=FLAGS.use_tpu,
       model_fn=model_fn,
       config=run_config,
@@ -1004,17 +1004,29 @@ def main(_):
 
     output_predict_file = os.path.join(FLAGS.output_dir, "test_results.tsv")
     with tf.gfile.GFile(output_predict_file, "w") as writer:
-      num_written_lines = 0
-      tf.logging.info("***** Predict results *****")
-      for (i, prediction) in enumerate(result):
-        probabilities = prediction["probabilities"]
-        if i >= num_actual_predict_examples:
-          break
-        output_line = "\t".join(
-            str(class_probability)
-            for class_probability in probabilities) + "\n"
-        writer.write(output_line)
-        num_written_lines += 1
+      with tf.gfile.GFile(os.path.join(FLAGS.output_dir, "predictions.txt"), "w") as pwriter:
+        num_written_lines = 0
+        tf.logging.info("***** Predict results *****")
+        for (i, prediction) in enumerate(result):
+          probabilities = prediction["probabilities"]
+          if i >= num_actual_predict_examples:
+            break
+          if FLAGS.task_name.lower() == "exception":
+            label = CuBertExceptionClassificationProcessor().get_labels()[probabilities.argmax()]
+          elif FLAGS.task_name.lower() == "varmisuse":
+            label = CuBertVariableMisuseProcessor().get_labels()[probabilities.argmax()]
+          elif FLAGS.task_name.lower() == "swappedop":
+            label = CuBertSwappedOperandProcessor().get_labels()[probabilities.argmax()]
+          elif FLAGS.task_name.lower() == "wrongop":
+            label = CuBertWrongOperatorProcessor().get_labels()[probabilities.argmax()]
+          else:
+            label = "UNKNOWN_TASK"
+          pwriter.write(label+"\n")
+          output_line = "\t".join(
+              str(class_probability)
+              for class_probability in probabilities) + "\n"
+          writer.write(output_line)
+          num_written_lines += 1
     assert num_written_lines == num_actual_predict_examples
 
 

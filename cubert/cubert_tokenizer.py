@@ -26,7 +26,7 @@ from typing import Sequence
 from typing import Text
 from typing import Union
 
-from cubert import unified_tokenizer
+import unified_tokenizer
 
 # After all splitting, the longest a token is of the following length.
 MAX_OUTPUT_TOKEN_LENGTH = 15

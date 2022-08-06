@@ -26,9 +26,9 @@ from typing import Sequence
 from absl import logging
 from javalang import tokenizer as javalang
 
-from cubert import cubert_tokenizer
-from cubert import extended_javalang_tokenizer
-from cubert import unified_tokenizer
+import cubert_tokenizer
+import extended_javalang_tokenizer
+import unified_tokenizer
 
 
 QUOTED_EOS_NAME = unified_tokenizer.quote_special(

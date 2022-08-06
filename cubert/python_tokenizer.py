@@ -23,8 +23,8 @@ from typing import List
 from typing import Sequence
 from typing import Tuple
 from absl import logging
-from cubert import cubert_tokenizer
-from cubert import unified_tokenizer
+import cubert_tokenizer
+import unified_tokenizer
 
 
 class PythonTokenizer(cubert_tokenizer.CuBertTokenizer):
